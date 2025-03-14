@@ -4,7 +4,7 @@ from texnomart.models import Category, Product, Image
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'product_count')
+    list_display = ('name', 'slug', 'product_count', 'total_price')
     list_filter = ('name',)
     search_fields = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
@@ -13,6 +13,12 @@ class CategoryAdmin(admin.ModelAdmin):
     def product_count(self, obj):
         return obj.products.count()
     product_count.short_description = "Mahsulotlar soni"
+
+
+    def total_price(self, obj):
+        return sum(product.price for product in obj.products.all())
+
+    total_price.short_description = "Umumiy narx"
 
 
 @admin.register(Product)
