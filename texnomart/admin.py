@@ -1,5 +1,5 @@
 from django.contrib import admin
-from texnomart.models import Category, Product, Image
+from texnomart.models import Category, Product, Image, Comment
 
 
 @admin.register(Category)
@@ -14,10 +14,8 @@ class CategoryAdmin(admin.ModelAdmin):
         return obj.products.count()
     product_count.short_description = "Mahsulotlar soni"
 
-
     def total_price(self, obj):
         return sum(product.price for product in obj.products.all())
-
     total_price.short_description = "Umumiy narx"
 
 
@@ -53,6 +51,41 @@ class ImageAdmin(admin.ModelAdmin):
         return "Rasm yo‘q"
     image_preview.short_description = "Rasm"
 
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('product', 'user', 'short_message', 'rating', 'created_at', 'has_image')
+    list_filter = ('rating', 'created_at', 'product')
+    search_fields = ('message', 'user__username', 'product__name', 'good_comment', 'bad_comment')
+    list_editable = ('rating',)
+    ordering = ('-created_at',)
+    list_per_page = 20
+    date_hierarchy = 'created_at'
+
+    def short_message(self, obj):
+        return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
+    short_message.short_description = "Qisqa xabar"
+
+    def has_image(self, obj):
+        from django.utils.html import format_html
+        if obj.image:
+            return format_html('<img src="{}" style="max-height: 50px;"/>', obj.image.url)
+        return "Rasm yo‘q"
+    has_image.short_description = "Rasm mavjud"
+
+    fieldsets = (
+        (None, {
+            'fields': ('product', 'user', 'rating')
+        }),
+        ('Comment Details', {
+            'fields': ('message', 'good_comment', 'bad_comment', 'image')
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at',)
 
 admin.site.site_header = "Texnomart Admin Paneli"
 admin.site.site_title = "Texnomart"

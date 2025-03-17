@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import Category, Product, Image
+from .models import Category, Product, Image, Comment
 
 
 class ImageSerializer(serializers.ModelSerializer):
@@ -10,12 +10,22 @@ class ImageSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = ImageSerializer(many=True, read_only=True)
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    likes = serializers.SerializerMethodField()
+    title = serializers.CharField(source='category.name', read_only=True)
+    def get_likes(self, instance):
+        user = self.context['request'].user
+
+        if not user.is_authenticated:
+            return False
+
+        if user not in instance.likes.all():
+            return False
+
+        return True
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'category', 'images']
+        fields = '__all__'
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -24,3 +34,10 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'slug', 'products']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = '__all__'
+
