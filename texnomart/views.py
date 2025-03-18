@@ -1,10 +1,22 @@
+from django.contrib import admin
 from rest_framework import viewsets, status
-from rest_framework.generics import ListAPIView
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from .models import Category, Product, Image, Comment
 from .permissions import WeekdayOnlyPermission
 from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, CommentSerializer
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied
+
+
+class IsCommentOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET']:
+            return True
+        return obj.user == request.user
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all().order_by('name')
@@ -19,19 +31,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
-# class ProductViewSet(viewsets.ModelViewSet):
-#     queryset = Product.objects.all().order_by('name')
-#     serializer_class = ProductSerializer
-#     filter_backends = [DjangoFilterBackend]
-#     filterset_fields = ['category', 'price']
-#
-#     def create(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_create(serializer)
-#         headers = self.get_success_headers(serializer.data)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by('name')
     serializer_class = ProductSerializer
@@ -45,6 +44,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 class ImageViewSet(viewsets.ModelViewSet):
     queryset = Image.objects.all().order_by('product__name')
@@ -62,7 +62,30 @@ class ImageViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     queryset = Comment.objects.all().order_by('created_at')
+    permission_classes = [WeekdayOnlyPermission, IsCommentOwner]
 
+    def get_queryset(self):
+        if timezone.now().weekday() > 4:
+            return Comment.objects.none()
+        return super().get_queryset()
 
+    def perform_create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=self.request.user)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        time_elapsed = timezone.now() - instance.created_at
+        if time_elapsed > timedelta(minutes=1):
+            raise PermissionDenied("Error deleting comment")
+        return super().destroy(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        time_elapsed = timezone.now() - instance.created_at
+        if time_elapsed > timedelta(minutes=2):
+            raise PermissionDenied("Error updating comment")
+        return super().update(request, *args, **kwargs)

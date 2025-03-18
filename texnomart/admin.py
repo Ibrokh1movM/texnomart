@@ -1,5 +1,7 @@
 from django.contrib import admin
 from texnomart.models import Category, Product, Image, Comment
+from django.utils import timezone
+from datetime import timedelta
 
 
 @admin.register(Category)
@@ -12,10 +14,12 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def product_count(self, obj):
         return obj.products.count()
+
     product_count.short_description = "Mahsulotlar soni"
 
     def total_price(self, obj):
         return sum(product.price for product in obj.products.all())
+
     total_price.short_description = "Umumiy narx"
 
 
@@ -30,10 +34,12 @@ class ProductAdmin(admin.ModelAdmin):
 
     def image_count(self, obj):
         return obj.images.count()
+
     image_count.short_description = "Rasmlar soni"
 
     def short_description(self, obj):
         return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
+
     short_description.short_description = "Qisqa tavsif"
 
 
@@ -49,6 +55,7 @@ class ImageAdmin(admin.ModelAdmin):
         if obj.image:
             return format_html('<img src="{}" style="max-height: 50px;"/>', obj.image.url)
         return "Rasm yo‘q"
+
     image_preview.short_description = "Rasm"
 
 
@@ -64,6 +71,7 @@ class CommentAdmin(admin.ModelAdmin):
 
     def short_message(self, obj):
         return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
+
     short_message.short_description = "Qisqa xabar"
 
     def has_image(self, obj):
@@ -71,7 +79,19 @@ class CommentAdmin(admin.ModelAdmin):
         if obj.image:
             return format_html('<img src="{}" style="max-height: 50px;"/>', obj.image.url)
         return "Rasm yo‘q"
+
     has_image.short_description = "Rasm mavjud"
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and (timezone.now() - obj.created_at) > timedelta(minutes=2):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if timezone.now().weekday() > 4:
+            return qs.none()
+        return qs
 
     fieldsets = (
         (None, {
@@ -86,6 +106,7 @@ class CommentAdmin(admin.ModelAdmin):
         }),
     )
     readonly_fields = ('created_at',)
+
 
 admin.site.site_header = "Texnomart Admin Paneli"
 admin.site.site_title = "Texnomart"
