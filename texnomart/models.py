@@ -48,7 +48,7 @@ class Comment(models.Model):
         FIVE = 5
 
     message = models.TextField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_user')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_user', null=True, blank=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='comment_product')
     created_at = models.DateTimeField(auto_now_add=True)
     image = models.FileField(upload_to='comments/', null=True, blank=True)
@@ -58,4 +58,3 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment for {self.product.name}"
-
